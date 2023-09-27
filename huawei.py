@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # !/usr/bin/python
 import time
+import operator
+import keyboard
 
 from selenium import webdriver
 from datetime import datetime
@@ -12,7 +14,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from configparser import ConfigParser
-
+from selenium.webdriver.common.by import By
 
 class HuaWei:
     browser = None
@@ -60,15 +62,18 @@ class HuaWei:
         sku_color = self.__config_get("product", "color")
         sku_version = self.__config_get("product", "version")
         sku_payment = self.__config_get("product", "payment")
-        WebDriverWait(self.browser, self.defaultTimeout).until(
-            EC.presence_of_element_located((By.LINK_TEXT, f"{sku_color}"))
-        ).click()
-        WebDriverWait(self.browser, self.defaultTimeout).until(
-            EC.presence_of_element_located((By.LINK_TEXT, f"{sku_version}"))
-        ).click()
-        WebDriverWait(self.browser, 20).until(
-            EC.presence_of_element_located((By.LINK_TEXT, f"{sku_payment}"))
-        ).click()
+        try:
+            WebDriverWait(self.browser, self.defaultTimeout).until(
+                EC.presence_of_element_located((By.LINK_TEXT, f"{sku_color}"))
+            ).click()
+            WebDriverWait(self.browser, self.defaultTimeout).until(
+                EC.presence_of_element_located((By.LINK_TEXT, f"{sku_version}"))
+            ).click()
+        except:
+            print("catch e")
+        # WebDriverWait(self.browser, 20).until(
+        #     EC.presence_of_element_located((By.LINK_TEXT, f"{sku_payment}"))
+        # ).click()
         print("{0} 选择手机规格完成，颜色：{1} 版本：{2} 付款方式：{3}".format(datetime.now(), sku_color, sku_version, sku_payment))
         time.sleep(0.01)
 
@@ -112,19 +117,32 @@ class HuaWei:
     def __start_buying(self):
         while self.isStartBuying:
             countdown_times = self.__get_countdown_time()
-            if(not self.isBuying):
+            if(self.isBuying == False):
                 print("{0} 距离抢购开始还剩：{1}".format(datetime.now(), self.__format_countdown_time(countdown_times)))
-                self.browser.refresh()
-                self.browser.implicitly_wait(20)
-                self.__choose_product()
-                self.browser.implicitly_wait(100)
-                button_element = WebDriverWait(self.browser, self.defaultTimeout).until(
-                    EC.presence_of_element_located((By.XPATH, "//div[@id='pro-operation']/a"))
-                )
-            if(button_element.text != '暂时缺货'):
-                button_element.click()
-                print("刷到手机开始抢购")
-                self.isBuying = True
+                if(self.browser.current_url == "https://www.vmall.com/product/10086009079805.html"):
+                    self.browser.refresh()
+                    self.browser.implicitly_wait(20)
+                    self.__choose_product()
+                    time.sleep(0.3)
+                    # self.browser.implicitly_wait(100)
+                    try:
+                        button_element = WebDriverWait(self.browser, self.defaultTimeout).until(
+                            EC.presence_of_element_located((By.XPATH, "//div[@id='pro-operation']/a"))
+                        )
+                        if(button_element.text != '暂时缺货'):
+                            keyboard.press('F8')
+                            print("刷到手机开始抢购")
+                            self.isBuying = True
+                    except:
+                        print("catch e")
+                else:
+                    if(self.isBuying == False):
+                        keyboard.press('F8')
+                    print("刷到手机开始抢购")
+                    self.isBuying = True
+                    if(operator.contains(self.browser.current_url, 'https://www.vmall.com/order/nowConfirmcart')):
+                        self.browser.find_element(By.ID, 'agreementChecked').click()
+                        self.browser.find_element(By.ID, 'checkoutSubmit').click()
             time.sleep(0.0001)
             self.__set_start_buying(countdown_times)
         self.__countdown()
